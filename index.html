@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>考研进度管理</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 20px;
+            border-radius: 24px;
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0 0 8px 0; font-size: 24px; }
+        .streak-card {
+            background: white;
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .streak-value { font-size: 28px; font-weight: bold; color: #f59e0b; }
+        .section {
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .section-header {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .module-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .module-name {
+            font-weight: 500;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .progress-bar-container {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .mastery-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .mastery-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 30px;
+            font-size: 13px;
+            background: #f0f2f5;
+            cursor: pointer;
+        }
+        .mastery-btn.active { background: #667eea; color: white; }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .complete-btn {
+            flex: 1;
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .incomplete-btn {
+            flex: 1;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .save-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #1f2d3d;
+            color: white;
+            text-align: center;
+            padding: 12px;
+            border-radius: 40px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+        .save-status.show { opacity: 1; }
+        .footer { text-align: center; font-size: 12px; color: #8c8f9c; margin-top: 30px; }
+        .undo-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .preview-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+        }
+        .preview-panel {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .token-input {
+            background: #fff3e0;
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+        .token-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .token-input button {
+            margin-top: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 考研进度管理</h1>
+            <p>每天学完点一点，智能规划下一模块</p>
+        </div>
+        
+        <div class="token-input" id="tokenConfig">
+            <div>🔑 首次使用需要配置 GitHub Token</div>
+            <input type="password" id="githubToken" placeholder="输入 GitHub Personal Access Token">
+            <input type="text" id="githubUser" placeholder="输入 GitHub 用户名">
+            <button onclick="saveToken()">保存并加载</button>
+            <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                Token 只保存在浏览器中。<a href="https://github.com/settings/tokens" target="_blank">点此获取 Token</a>（勾选 repo 权限）
+            </div>
+        </div>
+        
+        <div class="streak-card">
+            <span>🔥 连续打卡</span>
+            <span class="streak-value" id="streakValue">0</span>
+            <span>天</span>
+        </div>
+        
+        <div id="content">加载中...</div>
+        
+        <div style="display: flex; gap: 10px; margin: 20px 0;">
+            <button id="undoBtn" class="undo-btn">↩️ 撤销上一步</button>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button id="previewBtn" class="preview-btn">👁️ 预览明日任务</button>
+        </div>
+        <div id="previewPanel" class="preview-panel">
+            <div style="font-weight:600; margin-bottom:12px;">📅 明日任务预览</div>
+            <div id="previewContent"></div>
+        </div>
+        
+        <div class="footer">⚡ 点击按钮自动保存，第二天推送会自动更新</div>
+    </div>
+    
+    <div id="saveStatus" class="save-status">✓ 已保存</div>
+
+    <script>
+        let GITHUB_USER = localStorage.getItem('github_user') || '';
+        let GITHUB_TOKEN = localStorage.getItem('github_token') || '';
+        let progress = null;
+        
+        const MATH_MODULES = [
+            {"id": 1, "name": "函数与极限"}, {"id": 2, "name": "导数与微分"},
+            {"id": 3, "name": "微分中值定理"}, {"id": 4, "name": "不定积分"},
+            {"id": 5, "name": "定积分"}, {"id": 6, "name": "定积分应用"},
+            {"id": 7, "name": "微分方程"}, {"id": 8, "name": "向量代数"},
+            {"id": 9, "name": "多元函数微分学"}, {"id": 10, "name": "二重积分"},
+            {"id": 11, "name": "无穷级数"}, {"id": 12, "name": "线性代数基础"}
+        ];
+        
+        const C408_MODULES = [
+            {"id": 1, "name": "线性表（顺序表）"}, {"id": 2, "name": "线性表（链表）"},
+            {"id": 3, "name": "栈和队列"}, {"id": 4, "name": "串"},
+            {"id": 5, "name": "树与二叉树"}, {"id": 6, "name": "图"},
+            {"id": 7, "name": "查找"}, {"id": 8, "name": "排序"},
+            {"id": 9, "name": "考研真题专项"}
+        ];
+        
+        function saveToken() {
+            GITHUB_USER = document.getElementById('githubUser').value;
+            GITHUB_TOKEN = document.getElementById('githubToken').value;
+            localStorage.setItem('github_user', GITHUB_USER);
+            localStorage.setItem('github_token', GITHUB_TOKEN);
+            document.getElementById('tokenConfig').style.display = 'none';
+            loadProgress();
+        }
+        
+        if (GITHUB_USER && GITHUB_TOKEN) {
+            document.getElementById('tokenConfig').style.display = 'none';
+            loadProgress();
+        }
+        
+        async function loadProgress() {
+            try {
+                const url = `https://api.github.com/repos/${GITHUB_USER}/study-reminder/contents/progress.json`;
+                const res = await fetch(url, {
+                    headers: {'Authorization': `token ${GITHUB_TOKEN}`}
+                });
+                const data = await res.json();
+                const content = atob(data.content);
+                progress = JSON.parse(content);
+                render();
+            } catch(e) {
+                document.getElementById('content').innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">加载失败，请检查用户名和Token</div>';
+            }
+        }
+        
+        async function saveProgress(updateData) {
+            try {
+                const url = `https://api.github.com/repos/${GITHUB_USER}/study-reminder/contents/progress.json`;
+                const getRes = await fetch(url, {
+                    headers: {'Authorization': `token ${GITHUB_TOKEN}`}
+                });
+                const data = await getRes.json();
+                const currentContent = atob(data.content);
+                let currentProgress = JSON.parse(currentContent);
+                
+                Object.assign(currentProgress, updateData);
+                
+                const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(currentProgress, null, 2))));
+                const putRes = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: '更新进度',
+                        content: newContent,
+                        sha: data.sha
+                    })
+                });
+                
+                if (putRes.ok) {
+                    showStatus();
+                    await loadProgress();
+                }
+            } catch(e) {
+                showStatus('保存失败', true);
+            }
+        }
+        
+        function render() {
+            if (!progress) return;
+            document.getElementById('streakValue').innerText = progress.streak || 0;
+            
+            const math = progress.math;
+            const mathModule = MATH_MODULES.find(m => m.id === math.current);
+            const mathMastery = (math.mastery[math.current] || 0) * 100;
+            const mathCompleted = math.completed.includes(math.current);
+            
+            const c408 = progress.c408;
+            const c408Module = C408_MODULES.find(m => m.id === c408.current);
+            const c408Mastery = (c408.mastery[c408.current] || 0) * 100;
+            const c408Completed = c408.completed.includes(c408.current);
+            
+            const english = progress.english;
+            const englishPercent = Math.round(english.vocabulary / 5500 * 100);
+            
+            const politics = progress.politics;
+            const politicsModules = ["马原", "毛中特", "史纲", "思修", "形策"];
+            const politicsCompleted = politics.completed.length;
+            
+            document.getElementById('content').innerHTML = `
+                <div class="section">
+                    <div class="section-header">🧮 数学</div>
+                    <div class="module-item">
+                        <div class="module-name">
+                            <span>📖 ${mathModule?.name || '未知'}</span>
+                            <span>${mathCompleted ? '✅ 已完成' : '📌 进行中'}</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${mathMastery}%;"></div>
+                        </div>
+                        <div class="mastery-buttons">
+                            ${[0, 0.25, 0.5, 0.75, 1].map(l => `
+                                <button class="mastery-btn ${(math.mastery[math.current] || 0) === l ? 'active' : ''}" 
+                                        onclick="updateMathMastery(${l})">${l*100}%</button>
+                            `).join('')}
+                        </div>
+                        <div class="action-buttons">
+                            ${!mathCompleted ? `<button class="complete-btn" onclick="completeMath()">✓ 标记已完成</button>` : ''}
+                            <button class="incomplete-btn" onclick="incompleteMath()">⏸ 今日未完成</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">💻 408</div>
+                    <div class="module-item">
+                        <div class="module-name">
+                            <span>📖 ${c408Module?.name || '未知'}</span>
+                            <span>${c408Completed ? '✅ 已完成' : '📌 进行中'}</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${c408Mastery}%;"></div>
+                        </div>
+                        <div class="mastery-buttons">
+                            ${[0, 0.25, 0.5, 0.75, 1].map(l => `
+                                <button class="mastery-btn ${(c408.mastery[c408.current] || 0) === l ? 'active' : ''}" 
+                                        onclick="updateC408Mastery(${l})">${l*100}%</button>
+                            `).join('')}
+                        </div>
+                        <div class="action-buttons">
+                            ${!c408Completed ? `<button class="complete-btn" onclick="completeC408()">✓ 标记已完成</button>` : ''}
+                            <button class="incomplete-btn" onclick="incompleteC408()">⏸ 今日未完成</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">🇬🇧 英语</div>
+                    <div class="module-item">
+                        <div class="module-name">
+                            <span>📖 单词进度</span>
+                            <span>${english.vocabulary} / 5500 (${englishPercent}%)</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${englishPercent}%;"></div>
+                        </div>
+                        <div class="mastery-buttons">
+                            <button class="mastery-btn" onclick="updateEnglish(-50)">-50</button>
+                            <button class="mastery-btn" onclick="updateEnglish(-20)">-20</button>
+                            <button class="mastery-btn" onclick="updateEnglish(20)">+20</button>
+                            <button class="mastery-btn" onclick="updateEnglish(50)">+50</button>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <input type="number" id="wordsInput" placeholder="手动输入新增单词数" 
+                                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:12px;">
+                            <button class="complete-btn" style="background:#3b82f6; margin-top:8px;" onclick="updateEnglishManual()">确认增加</button>
+                        </div>
+                        <div class="action-buttons" style="margin-top:12px;">
+                            <button class="incomplete-btn" onclick="incompleteEnglish()">⏸ 今日未完成</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">📖 政治</div>
+                    <div class="module-item">
+                        <div class="module-name">
+                            <span>章节进度</span>
+                            <span>${politicsCompleted} / 5</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${politicsCompleted/5*100}%;"></div>
+                        </div>
+                        <div style="margin:12px 0;">当前模块：${politicsModules[politics.current-1] || '已完成'}</div>
+                        <div class="action-buttons">
+                            ${politics.current <= 5 ? `<button class="complete-btn" onclick="completePolitics()">✓ 标记已完成</button>` : ''}
+                            <button class="incomplete-btn" onclick="incompletePolitics()">⏸ 今日未完成</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function updateMathMastery(level) {
+            await saveProgress({math: {mastery: {[progress.math.current]: level}}});
+        }
+        
+        async function completeMath() {
+            const newCompleted = [...progress.math.completed, progress.math.current];
+            let nextId = progress.math.current + 1;
+            while (nextId <= 12 && newCompleted.includes(nextId)) nextId++;
+            await saveProgress({
+                math: {completed: newCompleted, current: nextId <= 12 ? nextId : progress.math.current}
+            });
+        }
+        
+        async function incompleteMath() {
+            await saveProgress({math: {pending_days: (progress.math.pending_days || 0) + 1}});
+        }
+        
+        async function updateC408Mastery(level) {
+            await saveProgress({c408: {mastery: {[progress.c408.current]: level}}});
+        }
+        
+        async function completeC408() {
+            const newCompleted = [...progress.c408.completed, progress.c408.current];
+            let nextId = progress.c408.current + 1;
+            while (nextId <= 9 && newCompleted.includes(nextId)) nextId++;
+            await saveProgress({
+                c408: {completed: newCompleted, current: nextId <= 9 ? nextId : progress.c408.current}
+            });
+        }
+        
+        async function incompleteC408() {
+            await saveProgress({c408: {pending_days: (progress.c408.pending_days || 0) + 1}});
+        }
+        
+        async function updateEnglish(delta) {
+            const newVal = Math.max(0, Math.min(5500, progress.english.vocabulary + delta));
+            await saveProgress({english: {vocabulary: newVal}});
+        }
+        
+        async function updateEnglishManual() {
+            const input = document.getElementById('wordsInput');
+            const delta = parseInt(input.value);
+            if (!isNaN(delta) && delta > 0) {
+                await updateEnglish(delta);
+                input.value = '';
+            }
+        }
+        
+        async function incompleteEnglish() {
+            await saveProgress({english: {pending_days: (progress.english.pending_days || 0) + 1}});
+        }
+        
+        async function completePolitics() {
+            const newCompleted = [...progress.politics.completed, progress.politics.current];
+            await saveProgress({
+                politics: {completed: newCompleted, current: progress.politics.current + 1}
+            });
+        }
+        
+        async function incompletePolitics() {
+            await saveProgress({politics: {pending_days: (progress.politics.pending_days || 0) + 1}});
+        }
+        
+        async function undo() {
+            showStatus('↩️ 撤销功能需要服务器支持，请手动修改 JSON', true);
+        }
+        
+        async function previewTomorrow() {
+            const daysLeft = Math.max(1, (new Date(2026, 11, 20) - new Date()) / (1000*60*60*24));
+            const wordsPerDay = Math.max(40, Math.floor((5500 - progress.english.vocabulary) / daysLeft));
+            const panel = document.getElementById('previewPanel');
+            document.getElementById('previewContent').innerHTML = `
+                <div>🧮 数学：继续学习 ${MATH_MODULES.find(m => m.id === progress.math.current)?.name || '当前模块'}</div>
+                <div>💻 408：继续学习 ${C408_MODULES.find(m => m.id === progress.c408.current)?.name || '当前模块'}</div>
+                <div>🇬🇧 英语：背诵 ${wordsPerDay} 个新单词</div>
+                <div>📖 政治：学习第 ${progress.politics.current} 个模块</div>
+            `;
+            panel.style.display = 'block';
+        }
+        
+        let statusTimeout;
+        function showStatus(msg = '✓ 已保存', isError = false) {
+            const el = document.getElementById('saveStatus');
+            el.textContent = msg;
+            el.style.background = isError ? '#ef4444' : '#1f2d3d';
+            el.classList.add('show');
+            if (statusTimeout) clearTimeout(statusTimeout);
+            statusTimeout = setTimeout(() => {
+                el.classList.remove('show');
+                el.style.background = '#1f2d3d';
+            }, 2000);
+        }
+        
+        document.getElementById('undoBtn')?.addEventListener('click', undo);
+        document.getElementById('previewBtn')?.addEventListener('click', previewTomorrow);
+    </script>
+</body>
+</html>
