@@ -1,0 +1,29 @@
+{
+  "math": {
+    "completed": [1],
+    "current": 2,
+    "mastery": {"1": 0.85},
+    "pending_days": 0,
+    "last_action": "2026-03-23"
+  },
+  "c408": {
+    "completed": [],
+    "current": 1,
+    "mastery": {},
+    "pending_days": 0,
+    "last_action": "2026-03-23"
+  },
+  "english": {
+    "vocabulary": 1500,
+    "target": 5500,
+    "pending_days": 0
+  },
+  "politics": {
+    "completed": [],
+    "current": 1,
+    "pending_days": 0
+  },
+  "streak": 1,
+  "last_update": "2026-03-23",
+  "action_history": []
+}
