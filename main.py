@@ -63,7 +63,6 @@ def generate_content():
     english_percent = int(progress["english"]["vocabulary"] / 5500 * 100)
     politics_completed = len(progress["politics"]["completed"])
     
-    # 网页地址
     web_url = "https://" + "zqlccon" + ".github.io/study-reminder/"
     
     content = f"""## 🎯 智能考研规划
