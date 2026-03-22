@@ -2,6 +2,7 @@ import requests
 import os
 import json
 from datetime import datetime
+import pytz
 
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 EXAM_DATE = datetime(2026, 12, 20)
@@ -46,7 +47,8 @@ def get_module_name(modules, module_id):
 
 def generate_content():
     progress = get_progress()
-    today = datetime.now()
+    beijing_tz = pytz.timezone('Asia/Shanghai')
+    today = datetime.now(beijing_tz)
     days_left = (EXAM_DATE - today).days
     
     math_current = progress["math"]["current"]
