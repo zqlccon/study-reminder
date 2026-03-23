@@ -2,7 +2,7 @@ name: Daily Study Reminder
 
 on:
   schedule:
-    - cron: '30 23 * * *'
+    - cron: '30 23 * * *'  # 每天北京时间 7:30
   workflow_dispatch:
 
 jobs:
