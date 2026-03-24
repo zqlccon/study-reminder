@@ -8,7 +8,7 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 GITHUB_USER = "zqlccon"
 GIST_ID = "fb9c75ae93ffe027322222d26eb3e6d2"
 
-# ========== 知识库（完整版） ==========
+# ========== 知识库 ==========
 MATH_SUBSECTIONS = [
     "1.1 映射与函数", "1.2 数列的极限", "1.3 函数的极限",
     "1.4 无穷小与无穷大", "1.5 极限运算法则", "1.6 极限存在准则",
@@ -21,7 +21,7 @@ MATH_SUBSECTIONS = [
     "5.1 定积分概念", "5.2 微积分基本公式", "5.3 定积分计算"
 ]
 
-DS_SUBSECTIONS = [
+C408_SUBSECTIONS = [
     "带头链表创建（代码手写）", "不带头链表创建", "链表插入删除", "双向链表",
     "栈的顺序存储", "栈的链式存储", "队列", "树与二叉树基础",
     "二叉树遍历", "二叉搜索树", "平衡二叉树", "图的基本概念",
@@ -36,7 +36,6 @@ OS_SUBSECTIONS = [
 ]
 
 def get_progress():
-    """从 Gist 读取进度"""
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
         resp = requests.get(url, timeout=10)
@@ -45,20 +44,17 @@ def get_progress():
         import json
         return json.loads(content)
     except Exception as e:
-        print(f"读取 Gist 失败：{e}")
-        # 默认进度
+        print(f"读取失败：{e}")
         return {
-            "math": {"current": 7, "completed": [1,2,3,4,5,6], "mastery": {"1": 0.85}},
-            "ds": {"current": 1, "completed": [], "mastery": {}},
-            "os": {"current": 4, "completed": [1,2,3], "mastery": {}},
+            "math": {"current": 1},
+            "c408": {"current": 1},
+            "os": {"current": 1},
             "english": {"vocabulary": 390, "target": 5561},
-            "politics": {"current": 1, "completed": []},
-            "streak": 0,
-            "missed_days": 0
+            "politics": {"current": 1},
+            "streak": 0
         }
 
 def get_current_stage():
-    """自动判断当前阶段"""
     today = date.today()
     if today < date(2026, 7, 1):
         return "基础期", (today - date(2026, 3, 1)).days // 7 + 1
@@ -70,7 +66,6 @@ def get_current_stage():
         return "冲刺期", (today - date(2026, 11, 1)).days // 7 + 1
 
 def get_motivation(progress, stage):
-    """根据连续打卡和阶段生成鼓励/压力话术"""
     streak = progress.get("streak", 0)
     missed = progress.get("missed_days", 0)
     days_left = (date(2026, 12, 20) - date.today()).days
@@ -83,8 +78,6 @@ def get_motivation(progress, stage):
         return f"⚠️ 已经漏了 {missed} 天！距离考研只剩 {days_left} 天，今天必须补回来！"
     elif stage == "冲刺期":
         return "⚡ 冲刺期！每一天都是决战！"
-    elif days_left < 100:
-        return "⚡ 距离考研不到 100 天了！抓紧时间！"
     else:
         return "🎯 新的一天！每一份努力都在让你离福大更近一步！"
 
@@ -97,68 +90,49 @@ def generate_content():
     math_idx = progress["math"]["current"] - 1
     math_task = MATH_SUBSECTIONS[math_idx] if 0 <= math_idx < len(MATH_SUBSECTIONS) else "复习"
     
-    ds_idx = progress["ds"]["current"] - 1
-    ds_task = DS_SUBSECTIONS[ds_idx] if 0 <= ds_idx < len(DS_SUBSECTIONS) else "复习"
+    c408_idx = progress["c408"]["current"] - 1
+    c408_task = C408_SUBSECTIONS[c408_idx] if 0 <= c408_idx < len(C408_SUBSECTIONS) else "复习"
     
     os_idx = progress["os"]["current"] - 1
     os_task = OS_SUBSECTIONS[os_idx] if 0 <= os_idx < len(OS_SUBSECTIONS) else "复习"
     
-    # 英语单词
     vocab = progress["english"]["vocabulary"]
     target = progress["english"]["target"]
     words_per_day = min(100, max(40, int((target - vocab) / max(days_left, 1))))
     
-    # 政治
     politics_current = progress["politics"]["current"]
     politics_modules = ["马原", "毛中特", "史纲", "思修", "形策"]
     politics_name = politics_modules[min(politics_current - 1, 4)] if politics_current <= 5 else "已完成"
     
-    # 鼓励语
     motivation = get_motivation(progress, stage)
     
-    # 今日日期和星期
     today = datetime.now()
-    beijing_time = today + timedelta(hours=8) if today.utcoffset() is None else today
+    beijing_time = today + timedelta(hours=8)
     weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
     weekday = weekday_names[beijing_time.weekday()]
     is_monday = beijing_time.weekday() == 0
     
-    # 周目标（周一显示）
     week_goal_section = ""
     if is_monday:
         if stage == "基础期":
-            week_goal = f"数学：完成 {math_task} 及习题；数据结构：{ds_task}；操作系统：{os_task}"
+            week_goal = f"数学：完成 {math_task}；408：{c408_task}；操作系统：{os_task}"
         elif stage == "强化期":
-            week_goal = f"数学：刷题强化；408：二轮大题；英语：真题阅读"
+            week_goal = "数学：刷题强化；408：二轮大题；英语：真题阅读"
         elif stage == "真题期":
-            week_goal = f"数学：完成真题套卷；408：完成真题套卷"
+            week_goal = "数学：完成真题套卷；408：完成真题套卷"
         else:
-            week_goal = f"数学：模拟卷；408：错题回顾；政治：肖四大题"
+            week_goal = "数学：模拟卷；408：错题回顾；政治：肖四大题"
         week_goal_section = f"\n### 📊 本周目标（第 {week_num} 周）\n{week_goal}\n"
     
-    # 任务时长（根据阶段调整）
     if stage == "基础期":
-        math_hours = 1.5
-        c408_hours = 2
-        english_hours = 0.5
-        politics_hours = 0
+        math_hours, c408_hours, english_hours = 1.5, 2, 0.5
     elif stage == "强化期":
-        math_hours = 2
-        c408_hours = 2
-        english_hours = 1
-        politics_hours = 0.5
+        math_hours, c408_hours, english_hours = 2, 2, 1
     else:
-        math_hours = 3
-        c408_hours = 3
-        english_hours = 1
-        politics_hours = 1
+        math_hours, c408_hours, english_hours = 3, 3, 1
     
-    # 周一精简
     if is_monday:
-        math_hours = 1
-        c408_hours = 1
-        english_hours = 0.5
-        politics_hours = 0
+        math_hours, c408_hours, english_hours = 1, 1, 0.5
     
     content = f"""## 🎯 考研智能规划 · {stage}
 
@@ -172,7 +146,7 @@ def generate_content():
 ### 📊 当前进度
 
 - 数学：{math_task}
-- 数据结构：{ds_task}
+- 408（数据结构）：{c408_task}
 - 操作系统：{os_task}
 - 英语：单词 {vocab}/{target}
 - 政治：{politics_name}
@@ -184,27 +158,19 @@ def generate_content():
 **🧮 数学（{math_hours}h）**
 - 学习：{math_task}
 - 习题：课后对应练习题
-- 重点：理解核心概念，整理公式
 
 **💻 408（{c408_hours}h）**
-- 数据结构：{ds_task}（手写代码 3 遍）
+- 数据结构：{c408_task}（手写代码）
 - 操作系统：{os_task}（王道选择题）
 
 **🇬🇧 英语（{english_hours}h）**
 - 新单词 {words_per_day} 个
 - 长难句分析 1 句
-- 复习昨日单词
-
-**📖 政治（{politics_hours}h）**
-- 学习：{politics_name}
-- 肖1000题对应章节选择题
 
 ---
 
 ### ✅ 打卡方式
-学完后在 PinMe 网页：
-1. 点击按钮更新进度
-2. 点击"同步到云端"
+学完后在 PinMe 网页点按钮更新进度，点击"同步到云端"
 
 ---
 
