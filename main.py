@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
-# 你的 Gist 配置
+# Gist 配置
 GITHUB_USER = "zqlccon"
 GIST_ID = "fb9c75ae93ffe027322222d26eb3e6d2"
 
@@ -35,6 +35,19 @@ OS_SUBSECTIONS = [
     "分页与分段", "虚拟内存", "文件系统", "I/O管理"
 ]
 
+# ========== 新增：计组 + 计网 ==========
+CN_SUBSECTIONS = [
+    "计算机系统概述", "数据的表示与运算", "运算器", "指令系统",
+    "存储系统", "Cache", "虚拟存储器", "CPU的结构与功能",
+    "指令流水线", "总线", "I/O系统"
+]
+
+NETWORK_SUBSECTIONS = [
+    "计算机网络体系结构", "物理层", "数据链路层", "以太网",
+    "网络层", "IP协议", "路由协议", "传输层",
+    "TCP/UDP", "应用层", "HTTP/DNS"
+]
+
 def get_progress():
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
@@ -46,9 +59,11 @@ def get_progress():
     except Exception as e:
         print(f"读取失败：{e}")
         return {
-            "math": {"current": 1},
-            "c408": {"current": 1},
-            "os": {"current": 1},
+            "math": {"current": 1, "mastery": {}},
+            "c408": {"current": 1, "mastery": {}},
+            "os": {"current": 1, "mastery": {}},
+            "cn": {"current": 0, "mastery": {}},
+            "network": {"current": 0, "mastery": {}},
             "english": {"vocabulary": 390, "target": 5561},
             "politics": {"current": 1},
             "streak": 0
@@ -64,6 +79,25 @@ def get_current_stage():
         return "真题期", (today - date(2026, 9, 1)).days // 7 + 1
     else:
         return "冲刺期", (today - date(2026, 11, 1)).days // 7 + 1
+
+def should_start_cn(progress):
+    """判断是否应该开始计组"""
+    if progress.get("cn", {}).get("current", 0) > 0:
+        return True
+    if date.today() >= date(2026, 5, 1):
+        return True
+    ds_done = progress["c408"]["current"] / len(C408_SUBSECTIONS)
+    os_done = progress["os"]["current"] / len(OS_SUBSECTIONS)
+    return ds_done > 0.6 and os_done > 0.6
+
+def should_start_network(progress):
+    """判断是否应该开始计网"""
+    if progress.get("network", {}).get("current", 0) > 0:
+        return True
+    if date.today() >= date(2026, 6, 15):
+        return True
+    cn_done = progress.get("cn", {}).get("current", 0) / len(CN_SUBSECTIONS) if progress.get("cn") else 0
+    return cn_done > 0.5
 
 def get_motivation(progress, stage):
     streak = progress.get("streak", 0)
@@ -86,20 +120,38 @@ def generate_content():
     stage, week_num = get_current_stage()
     days_left = (date(2026, 12, 20) - date.today()).days
     
-    # 获取当前学习内容
+    # 数学
     math_idx = progress["math"]["current"] - 1
     math_task = MATH_SUBSECTIONS[math_idx] if 0 <= math_idx < len(MATH_SUBSECTIONS) else "复习"
     
+    # 408 数据结构
     c408_idx = progress["c408"]["current"] - 1
     c408_task = C408_SUBSECTIONS[c408_idx] if 0 <= c408_idx < len(C408_SUBSECTIONS) else "复习"
     
+    # 操作系统
     os_idx = progress["os"]["current"] - 1
     os_task = OS_SUBSECTIONS[os_idx] if 0 <= os_idx < len(OS_SUBSECTIONS) else "复习"
     
+    # 计组（自动启动）
+    cn_task = ""
+    if should_start_cn(progress):
+        cn_current = progress.get("cn", {}).get("current", 1)
+        cn_idx = cn_current - 1
+        cn_task = f"\n- 计算机组成原理：{CN_SUBSECTIONS[cn_idx] if 0 <= cn_idx < len(CN_SUBSECTIONS) else '复习'}"
+    
+    # 计网（自动启动）
+    network_task = ""
+    if should_start_network(progress):
+        net_current = progress.get("network", {}).get("current", 1)
+        net_idx = net_current - 1
+        network_task = f"\n- 计算机网络：{NETWORK_SUBSECTIONS[net_idx] if 0 <= net_idx < len(NETWORK_SUBSECTIONS) else '复习'}"
+    
+    # 英语
     vocab = progress["english"]["vocabulary"]
     target = progress["english"]["target"]
     words_per_day = min(100, max(40, int((target - vocab) / max(days_left, 1))))
     
+    # 政治
     politics_current = progress["politics"]["current"]
     politics_modules = ["马原", "毛中特", "史纲", "思修", "形策"]
     politics_name = politics_modules[min(politics_current - 1, 4)] if politics_current <= 5 else "已完成"
@@ -112,10 +164,15 @@ def generate_content():
     weekday = weekday_names[beijing_time.weekday()]
     is_monday = beijing_time.weekday() == 0
     
+    # 周目标（周一显示）
     week_goal_section = ""
     if is_monday:
         if stage == "基础期":
-            week_goal = f"数学：完成 {math_task}；408：{c408_task}；操作系统：{os_task}"
+            week_goal = f"数学：{math_task}；数据结构：{c408_task}；操作系统：{os_task}"
+            if should_start_cn(progress):
+                week_goal += f"；计组：{CN_SUBSECTIONS[min(progress.get('cn',{}).get('current',1)-1,0)]}"
+            if should_start_network(progress):
+                week_goal += f"；计网：{NETWORK_SUBSECTIONS[min(progress.get('network',{}).get('current',1)-1,0)]}"
         elif stage == "强化期":
             week_goal = "数学：刷题强化；408：二轮大题；英语：真题阅读"
         elif stage == "真题期":
@@ -124,6 +181,7 @@ def generate_content():
             week_goal = "数学：模拟卷；408：错题回顾；政治：肖四大题"
         week_goal_section = f"\n### 📊 本周目标（第 {week_num} 周）\n{week_goal}\n"
     
+    # 任务时长
     if stage == "基础期":
         math_hours, c408_hours, english_hours = 1.5, 2, 0.5
     elif stage == "强化期":
@@ -134,6 +192,7 @@ def generate_content():
     if is_monday:
         math_hours, c408_hours, english_hours = 1, 1, 0.5
     
+    # 构建推送内容
     content = f"""## 🎯 考研智能规划 · {stage}
 
 **📅 {beijing_time.strftime('%Y-%m-%d')} {weekday}**
@@ -146,8 +205,8 @@ def generate_content():
 ### 📊 当前进度
 
 - 数学：{math_task}
-- 408（数据结构）：{c408_task}
-- 操作系统：{os_task}
+- 数据结构：{c408_task}
+- 操作系统：{os_task}{cn_task}{network_task}
 - 英语：单词 {vocab}/{target}
 - 政治：{politics_name}
 
@@ -161,7 +220,7 @@ def generate_content():
 
 **💻 408（{c408_hours}h）**
 - 数据结构：{c408_task}（手写代码）
-- 操作系统：{os_task}（王道选择题）
+- 操作系统：{os_task}（王道选择题）{cn_task}{network_task}
 
 **🇬🇧 英语（{english_hours}h）**
 - 新单词 {words_per_day} 个
